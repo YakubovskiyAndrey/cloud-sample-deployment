@@ -16,5 +16,5 @@ images:
   newName: ghcr.io/yakubovskiyandrey/task-service
   newTag: latest
 - name: user-service
-  newName: ghcr.io/yakubovskiyandrey/user-service
-  newTag: latest
+  newName: ghcr.io/yakubovskyiandrii/user-service
+  newTag: 27d7678c557d99213b7eecd126c89737e7941dfa
