@@ -1,0 +1,167 @@
+name: Deploy to GKE
+
+on:
+  # Triggered by app repositories after successful build
+  repository_dispatch:
+    types: [deploy]
+
+  # Manual deployment
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (comma-separated: gateway,task,user,frontend or all)'
+        required: true
+        default: 'all'
+      image_tag:
+        description: 'Image tag to deploy'
+        required: true
+        default: 'latest'
+
+env:
+  GKE_PROJECT: ${{ secrets.GKE_PROJECT }}
+  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER }}
+  GKE_ZONE: ${{ secrets.GKE_ZONE }}
+  REGISTRY: ghcr.io
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GKE_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GKE_PROJECT }}
+          install_components: 'gke-gcloud-auth-plugin'
+
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --zone ${{ env.GKE_ZONE }} \
+            --project ${{ env.GKE_PROJECT }}
+
+      - name: Determine deployment parameters
+        id: params
+        run: |
+          # Default owner (can be overridden by repository_dispatch)
+          OWNER_LC=$(echo "${{ secrets.IMAGE_OWNER || github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=${OWNER_LC}" >> $GITHUB_OUTPUT
+
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            # From app repository trigger
+            echo "services=${{ github.event.client_payload.services }}" >> $GITHUB_OUTPUT
+            echo "tag=${{ github.event.client_payload.tag }}" >> $GITHUB_OUTPUT
+            echo "source_repo=${{ github.event.client_payload.source_repo }}" >> $GITHUB_OUTPUT
+          else
+            # Manual dispatch
+            echo "services=${{ github.event.inputs.services }}" >> $GITHUB_OUTPUT
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+            echo "source_repo=manual" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update image versions in kustomization
+        run: |
+          cd kustomize
+          SERVICES="${{ steps.params.outputs.services }}"
+          TAG="${{ steps.params.outputs.tag }}"
+          OWNER="${{ steps.params.outputs.owner }}"
+
+          echo "Deploying services: $SERVICES with tag: $TAG"
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"gateway"* ]]; then
+            echo "Updating gateway-service to $TAG"
+            kustomize edit set image gateway-service=${{ env.REGISTRY }}/${OWNER}/gateway-service:${TAG}
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"task"* ]]; then
+            echo "Updating task-service to $TAG"
+            kustomize edit set image task-service=${{ env.REGISTRY }}/${OWNER}/task-service:${TAG}
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"user"* ]]; then
+            echo "Updating user-service to $TAG"
+            kustomize edit set image user-service=${{ env.REGISTRY }}/${OWNER}/user-service:${TAG}
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"frontend"* ]]; then
+            echo "Updating frontend-service to $TAG"
+            kustomize edit set image frontend-service=${{ env.REGISTRY }}/${OWNER}/cloud-fe-sample:${TAG}
+          fi
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace cloud-demo --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create secrets if not exist
+        run: |
+          # PostgreSQL secret
+          if ! kubectl get secret postgresql-secret -n cloud-demo &> /dev/null; then
+            kubectl create secret generic postgresql-secret \
+              --from-literal=username=postgres \
+              --from-literal=password="${{ secrets.POSTGRES_PASSWORD }}" \
+              -n cloud-demo
+          fi
+
+          # MongoDB secret
+          if ! kubectl get secret mongodb-secret -n cloud-demo &> /dev/null; then
+            kubectl create secret generic mongodb-secret \
+              --from-literal=username=admin \
+              --from-literal=password="${{ secrets.MONGO_PASSWORD }}" \
+              -n cloud-demo
+          fi
+
+      - name: Deploy to GKE
+        run: |
+          kubectl apply -k kustomize/
+
+      - name: Wait for rollout
+        run: |
+          SERVICES="${{ steps.params.outputs.services }}"
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"gateway"* ]]; then
+            kubectl rollout status deployment/gateway -n cloud-demo --timeout=120s || true
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"task"* ]]; then
+            kubectl rollout status deployment/task -n cloud-demo --timeout=120s || true
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"user"* ]]; then
+            kubectl rollout status deployment/user -n cloud-demo --timeout=120s || true
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"frontend"* ]]; then
+            kubectl rollout status deployment/frontend -n cloud-demo --timeout=120s || true
+          fi
+
+      - name: Get deployment status
+        run: |
+          echo "=== Deployed Services ==="
+          kubectl get services -n cloud-demo
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods -n cloud-demo
+          echo ""
+          echo "=== Deployment triggered by: ${{ steps.params.outputs.source_repo }} ==="
+          echo "=== Image tag: ${{ steps.params.outputs.tag }} ==="
+
+      - name: Commit kustomization changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add kustomize/kustomization.yml
+          git diff --staged --quiet || git commit -m "Deploy: Update image tags to ${{ steps.params.outputs.tag }}
+
+          Services: ${{ steps.params.outputs.services }}
+          Source: ${{ steps.params.outputs.source_repo }}"
+          git push || echo "No changes to push"
