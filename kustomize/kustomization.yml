@@ -8,7 +8,7 @@ resources:
 images:
 - name: frontend-service
   newName: ghcr.io/yakubovskyiandrii/cloud-fe-sample
-  newTag: 4ef1353b9e86e3b0b29439b8aa6ea57c265a4936
+  newTag: 1d6cbc90aac6fd3d148769ced72c7849421d2ef8
 - name: gateway-service
   newName: ghcr.io/yakubovskiyandrey/gateway-service
   newTag: latest
