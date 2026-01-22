@@ -7,8 +7,8 @@ resources:
 # Версії образів - оновлюються через CI/CD
 images:
 - name: frontend-service
-  newName: ghcr.io/yakubovskyiandrii/cloud-fe-sample
-  newTag: 1d6cbc90aac6fd3d148769ced72c7849421d2ef8
+  newName: ghcr.io/yakubovskiyandrey/cloud-fe-sample
+  newTag: latest
 - name: gateway-service
   newName: ghcr.io/yakubovskiyandrey/gateway-service
   newTag: latest
@@ -16,5 +16,5 @@ images:
   newName: ghcr.io/yakubovskiyandrey/task-service
   newTag: latest
 - name: user-service
-  newName: ghcr.io/yakubovskyiandrii/user-service
-  newTag: 27d7678c557d99213b7eecd126c89737e7941dfa
+  newName: ghcr.io/yakubovskiyandrey/user-service
+  newTag: latest
