@@ -98,6 +98,21 @@ jobs:
             kustomize edit set image frontend-service=${{ env.REGISTRY }}/${OWNER}/cloud-fe-sample:${TAG}
           fi
 
+      - name: Install nginx-ingress controller if not exists
+        run: |
+          if ! kubectl get namespace ingress-nginx &> /dev/null; then
+            echo "Installing nginx-ingress controller..."
+            kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml
+
+            echo "Waiting for ingress controller to be ready..."
+            kubectl wait --namespace ingress-nginx \
+              --for=condition=ready pod \
+              --selector=app.kubernetes.io/component=controller \
+              --timeout=180s
+          else
+            echo "nginx-ingress controller already installed"
+          fi
+
       - name: Create namespace if not exists
         run: |
           kubectl create namespace cloud-demo --dry-run=client -o yaml | kubectl apply -f -
@@ -149,11 +164,19 @@ jobs:
           echo "=== Deployed Services ==="
           kubectl get services -n cloud-demo
           echo ""
+          echo "=== Ingress ==="
+          kubectl get ingress -n cloud-demo
+          echo ""
           echo "=== Pod Status ==="
           kubectl get pods -n cloud-demo
           echo ""
           echo "=== Deployment triggered by: ${{ steps.params.outputs.source_repo }} ==="
           echo "=== Image tag: ${{ steps.params.outputs.tag }} ==="
+          echo ""
+          echo "=== ACCESS URL ==="
+          INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "pending")
+          echo "Application URL: http://${INGRESS_IP}"
+          echo ""
 
       - name: Commit kustomization changes
         run: |

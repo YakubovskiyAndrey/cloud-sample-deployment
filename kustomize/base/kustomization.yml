@@ -16,3 +16,6 @@ resources:
   - task
   - user
   - frontend
+
+  # Ingress (external access)
+  - ingress
