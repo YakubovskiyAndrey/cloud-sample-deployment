@@ -17,4 +17,4 @@ images:
   newTag: latest
 - name: user-service
   newName: ghcr.io/yakubovskiyandrey/user-service
-  newTag: 0ebd2da5b25634ff2a94f1c0263ac70c8c6f9084
+  newTag: latest
