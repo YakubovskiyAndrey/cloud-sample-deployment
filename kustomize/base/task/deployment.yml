@@ -15,6 +15,7 @@ spec:
       containers:
         - name: task
           image: task-service:latest
+          imagePullPolicy: Always
           resources:
             limits:
               memory: "2048Mi"
