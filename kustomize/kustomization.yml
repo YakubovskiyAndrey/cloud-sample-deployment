@@ -11,10 +11,10 @@ images:
   newTag: 4cee0ad2d47c0cf9c809cdb7e5a82d0a133b0ab9
 - name: gateway-service
   newName: ghcr.io/yakubovskiyandrey/gateway-service
-  newTag: latest
+  newTag: 51e1a5b6257f567fc5fbaffe26b080ac027dbcab
 - name: task-service
   newName: ghcr.io/yakubovskiyandrey/task-service
-  newTag: latest
+  newTag: 51e1a5b6257f567fc5fbaffe26b080ac027dbcab
 - name: user-service
   newName: ghcr.io/yakubovskiyandrey/user-service
-  newTag: latest
+  newTag: 51e1a5b6257f567fc5fbaffe26b080ac027dbcab
