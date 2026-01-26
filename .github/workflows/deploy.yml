@@ -139,6 +139,30 @@ jobs:
         run: |
           kubectl apply -k kustomize/
 
+      - name: Restart deployments to pick up new images
+        run: |
+          SERVICES="${{ steps.params.outputs.services }}"
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"gateway"* ]]; then
+            echo "Restarting gateway..."
+            kubectl rollout restart deployment/gateway -n cloud-demo
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"task"* ]]; then
+            echo "Restarting task..."
+            kubectl rollout restart deployment/task -n cloud-demo
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"user"* ]]; then
+            echo "Restarting user..."
+            kubectl rollout restart deployment/user -n cloud-demo
+          fi
+
+          if [[ "$SERVICES" == "all" || "$SERVICES" == *"frontend"* ]]; then
+            echo "Restarting frontend..."
+            kubectl rollout restart deployment/frontend -n cloud-demo
+          fi
+
       - name: Wait for rollout
         run: |
           SERVICES="${{ steps.params.outputs.services }}"
