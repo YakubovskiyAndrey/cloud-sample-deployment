@@ -14,7 +14,7 @@ images:
   newTag: 51e1a5b6257f567fc5fbaffe26b080ac027dbcab
 - name: task-service
   newName: ghcr.io/yakubovskiyandrey/task-service
-  newTag: 51e1a5b6257f567fc5fbaffe26b080ac027dbcab
+  newTag: de0d59b7c05053c7a1141d7e566d7c3baed7e17a
 - name: user-service
   newName: ghcr.io/yakubovskiyandrey/user-service
   newTag: 51e1a5b6257f567fc5fbaffe26b080ac027dbcab
